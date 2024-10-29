@@ -22,7 +22,9 @@ shinydashboard::tabItem(tabName = 'process_results',
 			  	shiny::selectInput("process_results_chemical_adduct", 
 				  	"Adduct", choices = c(), width = "30vw")
 				)
-			)
+			),
+        # Launches the script to store matrices in the bd
+        shiny::actionButton("record_matrix_db", "Record matrix in database")
 		)
 	),
 	shinydashboard::box(width = 9,

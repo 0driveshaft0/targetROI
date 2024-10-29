@@ -7,3 +7,5 @@ CREATE TABLE `feature` ( `feature` INTEGER PRIMARY KEY AUTOINCREMENT, `mz` REAL 
 CREATE TABLE `deconvolution_infos` ( `project` INTEGER NOT NULL UNIQUE, `time_start` TEXT, `time_end` TEXT, `time_diff` TEXT, `computer_manufacturer` TEXT, `computer_model` TEXT, `os_info` TEXT, `system_type` TEXT, `cpu_manufacturer` TEXT, `processor_info` TEXT, `cpu_cores` TEXT, `cpu_speed` TEXT, `memory_info` TEXT, `memory_speed` TEXT, FOREIGN KEY(`project`) REFERENCES `project`(`project`), PRIMARY KEY(`project`));
 CREATE TABLE `cal_data` ( `id` INTEGER PRIMARY KEY AUTOINCREMENT, `sample` TEXT, `subclass` INTEGER, `concentration` REAL, `chlorination` REAL );
 CREATE TABLE `subclass` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `project` INTEGER, `subclass_name` TEXT, FOREIGN KEY(`project`) REFERENCES `project`(`project`));
+CREATE TABLE `matrix_metadata` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `project` INTEGER, `sample` TEXT, `type` TEXT, `adduct` TEXT);
+CREATE TABLE `matrix` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `metadata_id` INTEGER, `carbon` TEXT, `chlore` TEXT, `values` TEXT, FOREIGN KEY (metadata_id) REFERENCES matrix_metadata(id));

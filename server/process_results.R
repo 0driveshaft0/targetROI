@@ -233,6 +233,61 @@ initComplete = htmlwidgets::JS("
 	});
 "))
 
+observeEvent(input$record_matrix_db, {
+  full_mat <- mat()
+  matrix_metadata <- list()
+  matrix_data <- list()
+
+  # Parcourir chaque niveau de full_mat
+  for (sample in names(full_mat)) {
+    sample_layer <- full_mat[[sample]]
+
+    for (type in names(sample_layer)) {
+      type_layer <- sample_layer[[type]]
+
+      for (adduct in names(type_layer)) {
+        adduct_layer <- type_layer[[adduct]]
+
+        # Ajouter les métadonnées
+        matrix_metadata[[length(matrix_metadata) + 1]] <- data.frame(
+          project = input$project,
+          sample = sample,
+          type = type,
+          adduct = adduct,
+          stringsAsFactors = FALSE
+        )
+
+        # Pour chaque cellule de la matrice
+        for (carbon in rownames(adduct_layer)) {
+          for (chlore in colnames(adduct_layer)) {
+            cell_value <- adduct_layer[carbon, chlore]
+
+            # Ajouter les informations dans matrix_data sous forme de liste
+            matrix_data[[length(matrix_data) + 1]] <- data.frame(
+              carbon = carbon,
+              chlore = chlore,
+              values = cell_value,
+              stringsAsFactors = FALSE
+            )
+          }
+        }
+      }
+    }
+  }
+
+  # Combiner toutes les lignes dans un seul data.frame pour les métadonnées
+  final_metadata_df <- do.call(rbind, matrix_metadata)
+
+  # Combiner toutes les lignes dans un seul data.frame pour les valeurs
+  final_data_df <- do.call(rbind, matrix_data)
+
+  # Enregistrement des données dans la base de données
+  record_matrix_data(db, final_metadata_df, final_data_df)
+
+  # Notification de succès
+  shiny::showNotification("The matrices have been successfully registered in the database and exported!", type = "message")
+})
+
 #' @title Event when a cell is selected
 #' 
 #' @description

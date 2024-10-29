@@ -140,6 +140,43 @@ record_deconvolution_infos <- function(db, infos) {
   db_execute(db, query)
 }
 
+record_matrix_data <- function(db, metadata, data) {
+  # Vérifier si les data frames ne sont pas vides
+  if (nrow(metadata) == 0 || nrow(data) == 0) {
+    warning("No data to insert.")
+    return()
+  }
+
+  # Préparer une requête d'insertion pour les métadonnées
+  metadata_query <- "INSERT OR REPLACE INTO matrix_metadata (project, sample, type, adduct) VALUES (?, ?, ?, ?)"
+
+  # Insérer les métadonnées et obtenir les IDs
+  metadata_ids <- apply(metadata, 1, function(row) {
+    dbExecute(db, metadata_query, params = list(
+      row['project'],
+      row['sample'],
+      row['type'],
+      row['adduct']
+    ))
+    dbGetQuery(db, "SELECT last_insert_rowid()")[[1]]
+  })
+
+  # Ajouter les IDs des métadonnées au data frame des valeurs
+  data$metadata_id <- rep(metadata_ids, each = nrow(data) / length(metadata_ids))
+
+  # Préparer une requête d'insertion pour les valeurs
+  values_query <- "INSERT OR REPLACE INTO matrix (metadata_id, carbon, chlore, `values`) VALUES (?, ?, ?, ?)"
+
+  # Utiliser lapply pour exécuter dbExecute sur chaque ligne
+  apply(data, 1, function(row) {
+    dbExecute(db, values_query, params = list(
+      row['metadata_id'],
+      row['carbon'],
+      row['chlore'],
+      row['values']
+    ))
+  })
+}
 
 #' @title Record deconvolution params
 #'

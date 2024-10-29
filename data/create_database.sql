@@ -112,3 +112,18 @@ CREATE TABLE `subclass` (
 	`subclass_name`	TEXT,
 	FOREIGN KEY(`project`) REFERENCES `project`(`project`)
 );
+CREATE TABLE `matrix_metadata` (
+    `id` 			INTEGER PRIMARY KEY AUTOINCREMENT,
+    `project` 		INTEGER,
+    `sample` 		TEXT,
+    `type` 			TEXT,
+    `adduct` 		TEXT
+);
+CREATE TABLE `matrix` (
+    `id` 			INTEGER PRIMARY KEY AUTOINCREMENT,
+    `metadata_id` 	INTEGER,
+    `carbon` 		TEXT,
+    `chlore` 		TEXT,
+    `values` 		TEXT,
+    FOREIGN KEY (metadata_id) REFERENCES matrix_metadata(id)
+);
