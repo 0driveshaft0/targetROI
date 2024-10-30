@@ -36,7 +36,7 @@ shiny::observeEvent(input$process_results_study, {
 
 # Get all the matrices when the project is selected
 shiny::observeEvent(input$project, {
-  project_matrices <<- get_project_matrices(db, input$project)
+  project_matrices <<- get_project_matrix(db, input$project)
 })
 
 # Filter variable to keep filters matrix when one filter was applied

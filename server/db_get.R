@@ -599,7 +599,7 @@ get_infos <- function(db, project = NULL){
   db_get_query(db, query)
 }
 
-get_project_matrices <- function(db, project_id) {
+get_project_matrix <- function(db, project_id) {
   # Requête pour obtenir les métadonnées associées au projet
   metadata_query <- sprintf("SELECT id, sample, type, adduct FROM matrix_metadata WHERE project = %s", project_id)
   metadata <- dbGetQuery(db, metadata_query)

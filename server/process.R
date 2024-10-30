@@ -706,7 +706,7 @@ shiny::observeEvent(input$process_launch, {
     final_data_df <- do.call(rbind, matrix_data)
     
     # Delete the matrices associated with the current project
-    delete_project_matrices(db, input$project)
+    delete_project_matrix(db, input$project)
 
     # Success notification for deleting the matrices associated with the project
     shiny::showNotification("The matrices associated with the project have been successfully deleted!", type = "message")
@@ -719,7 +719,7 @@ shiny::observeEvent(input$process_launch, {
     print("The matrices have been successfully registered in the database and exported!")
 
     # Retrieve the matrices associated with the current project
-    project_matrices <<- get_project_matrices(db, input$project)
+    project_matrices <<- get_project_matrix(db, input$project)
 
     # print("############################################################")
     # print("##################   MATRICES SUMMARY all   ################")
