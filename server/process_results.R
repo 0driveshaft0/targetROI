@@ -286,6 +286,19 @@ observeEvent(input$record_matrix_db, {
 
   # Notification de succès
   shiny::showNotification("The matrices have been successfully registered in the database and exported!", type = "message")
+
+  matrices <- get_project_matrices(db, input$project)
+  # Notification de succès
+  shiny::showNotification("The matrices have been successfully retrieved from the database!", type = "message")
+  print(matrices)
+})
+
+observeEvent(input$delete_matrix_db, {
+  # Supprimer les matrices d'une ancienne déconvolution associé au même projet
+  delete_project_matrices(db, input$project)
+
+  # Notification de succès
+  shiny::showNotification("The matrices associated with the project have been successfully deleted!", type = "message")
 })
 
 #' @title Event when a cell is selected

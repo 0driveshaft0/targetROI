@@ -111,3 +111,19 @@ delete_features <- function(db, project_samples = NULL, adduct = NULL, chemical_
 		#paste(sprintf("\"%s\"", chemical_type), collapse = ", "))
 	db_execute(db, query)
 }
+
+delete_project_matrices <- function(db, project_id) {
+  # Requête pour obtenir les IDs des métadonnées associées au projet
+  metadata_query <- sprintf("SELECT id FROM matrix_metadata WHERE project = %s", project_id)
+  metadata_ids <- dbGetQuery(db, metadata_query)$id
+
+  # Si des métadonnées sont trouvées, supprimer les valeurs associées
+  if (length(metadata_ids) > 0) {
+    values_query <- sprintf("DELETE FROM matrix WHERE metadata_id IN (%s)", paste(metadata_ids, collapse = ","))
+    dbExecute(db, values_query)
+  }
+
+  # Supprimer les métadonnées associées au projet
+  metadata_delete_query <- sprintf("DELETE FROM matrix_metadata WHERE project = %s", project_id)
+  dbExecute(db, metadata_delete_query)
+}

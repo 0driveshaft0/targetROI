@@ -598,3 +598,52 @@ get_infos <- function(db, project = NULL){
   }
   db_get_query(db, query)
 }
+
+get_project_matrices <- function(db, project_id) {
+  # Requête pour obtenir les métadonnées associées au projet
+  metadata_query <- sprintf("SELECT id, sample, type, adduct FROM matrix_metadata WHERE project = %s", project_id)
+  metadata <- dbGetQuery(db, metadata_query)
+
+  # Requête pour obtenir les valeurs associées aux métadonnées
+  values_query <- sprintf("SELECT metadata_id, carbon, chlore, `values` FROM matrix WHERE metadata_id IN (%s)", paste(metadata$id, collapse = ","))
+  values <- dbGetQuery(db, values_query)
+
+  # Initialiser une liste pour stocker les matrices
+  matrices <- list()
+
+  # Parcourir les métadonnées et reconstruire les matrices
+  for (i in seq_len(nrow(metadata))) {
+    metadata_row <- metadata[i, ]
+    metadata_id <- metadata_row$id
+    sample <- metadata_row$sample
+    type <- metadata_row$type
+    adduct <- metadata_row$adduct
+
+    # Filtrer les valeurs pour le métadonnée actuelle
+    matrix_values <- values[values$metadata_id == metadata_id, ]
+
+    # Créer une matrice vide avec les dimensions appropriées
+    carbon_levels <- unique(matrix_values$carbon)
+    chlore_levels <- unique(matrix_values$chlore)
+    matrix <- matrix(NA, nrow = length(carbon_levels), ncol = length(chlore_levels), dimnames = list(carbon_levels, chlore_levels))
+
+    # Remplir la matrice avec les valeurs
+    for (j in seq_len(nrow(matrix_values))) {
+      row <- matrix_values[j, ]
+      matrix[row$carbon, row$chlore] <- row$values
+    }
+
+    # Ajouter la matrice à la liste
+    if (!is.null(matrices[[sample]])) {
+      if (!is.null(matrices[[sample]][[type]])) {
+        matrices[[sample]][[type]][[adduct]] <- matrix
+      } else {
+        matrices[[sample]][[type]] <- list(adduct = matrix)
+      }
+    } else {
+      matrices[[sample]] <- list(type = list(adduct = matrix))
+    }
+  }
+
+  return(matrices)
+}

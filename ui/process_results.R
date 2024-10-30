@@ -24,7 +24,9 @@ shinydashboard::tabItem(tabName = 'process_results',
 				)
 			),
         # Launches the script to store matrices in the bd
-        shiny::actionButton("record_matrix_db", "Record matrix in database")
+        shiny::actionButton("record_matrix_db", "Record matrix in database"),
+        # Launches the script to delete matrices in the bd
+        shiny::actionButton("delete_matrix_db", "Delete matrix in database")
 		)
 	),
 	shinydashboard::box(width = 9,
