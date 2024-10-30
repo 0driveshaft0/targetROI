@@ -37,58 +37,6 @@ actualize <- shiny::reactiveValues(
 
 values <- reactiveValues(export = FALSE)
 
-mat <- reactive({
-  # Trigger any updates needed
-  actualize$deconvolution_params
-  values$export
-
-  # Construct the SQL query
-  query <- sprintf('SELECT chemical_type, adduct 
-                    FROM deconvolution_param 
-                    WHERE project = "%s" 
-                    AND chemical_type IN (
-                      SELECT chemical_type 
-                      FROM chemical 
-                      WHERE chemical_familly != "Standard"
-                    );', input$project)
-  
-  chemicals <- db_get_query(db, query)
-  print(chemicals)
-  
-  samples <- get_samples(db, input$project)
-  mat <- list()
-  
-  # Progress bar setup
-  withProgress(message = 'mat() - Retrieving profile matrices...', value = 0, {
-    total_iterations <- length(samples$sample_id)
-    amount <- length(samples$sample_id) * length(unique(chemicals$chemical_type)) * length(unique(chemicals$adduct))
-    iteration <- 0
-    
-    # Iterate over all the samples to get the profile matrix
-    for (i in 1:length(samples$sample_id)) {
-      sample_id <- samples$sample_id[i]
-      
-      mat2 <- sapply(samples$sample_id[i], function(project) {
-        sapply(unique(chemicals$chemical_type), function(chemical) {
-          sapply(unique(chemicals$adduct[which(chemicals$chemical_type == chemical)]), function(adduct) {
-            result <- get_profile_matrix(db, samples$project_sample[i], adduct, chemical, export = values$export)
-            
-            # Update the progress bar
-            iteration <- i
-            incProgress(1 / amount, detail = sprintf("Processing %d of %d", iteration, total_iterations))
-            
-            return(result)
-          }, simplify = FALSE, USE.NAMES = TRUE)
-        }, simplify = FALSE, USE.NAMES = TRUE)
-      }, simplify = FALSE, USE.NAMES = TRUE)
-      
-      mat <- append(mat, mat2)
-    }
-  })
-
-  return(mat)
-})
-
 #' @title Matrix with filters reactive value
 #'
 #' @description
@@ -99,11 +47,11 @@ mat <- reactive({
 filter_mat <- reactive({
 	input$process_results_apply # To reload when new value
 	chemicals <- data.frame()
-	for(chem in 1:length(names(mat()[[names(mat())[1]]]))){
-		add <- data.frame(chemical_type = rep(names(mat()[[names(mat())[1]]])[chem], length(names(mat()[[names(mat())[1]]][[chem]]))), adduct = names(mat()[[names(mat())[1]]][[chem]]))
+	for(chem in 1:length(names(project_matrices[[names(project_matrices)[1]]]))){
+		add <- data.frame(chemical_type = rep(names(project_matrices[[names(project_matrices)[1]]])[chem], length(names(project_matrices[[names(project_matrices)[1]]][[chem]]))), adduct = names(project_matrices[[names(project_matrices)[1]]][[chem]]))
 		chemicals <- rbind(chemicals, add)
 	}
-	temp <- mat()
+	temp <- project_matrices
 	filter_mat <- list()
 	nameForRename <- list()
 	for(i in 1:length(names(temp))){

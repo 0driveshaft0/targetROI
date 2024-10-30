@@ -603,6 +603,11 @@ get_project_matrices <- function(db, project_id) {
   # Requête pour obtenir les métadonnées associées au projet
   metadata_query <- sprintf("SELECT id, sample, type, adduct FROM matrix_metadata WHERE project = %s", project_id)
   metadata <- dbGetQuery(db, metadata_query)
+  
+  if (nrow(metadata) == 0) {
+    message("Aucune métadonnée trouvée pour le projet:", project_id)
+    return(list())
+  }
 
   # Requête pour obtenir les valeurs associées aux métadonnées
   values_query <- sprintf("SELECT metadata_id, carbon, chlore, `values` FROM matrix WHERE metadata_id IN (%s)", paste(metadata$id, collapse = ","))
@@ -634,15 +639,13 @@ get_project_matrices <- function(db, project_id) {
     }
 
     # Ajouter la matrice à la liste
-    if (!is.null(matrices[[sample]])) {
-      if (!is.null(matrices[[sample]][[type]])) {
-        matrices[[sample]][[type]][[adduct]] <- matrix
-      } else {
-        matrices[[sample]][[type]] <- list(adduct = matrix)
-      }
-    } else {
-      matrices[[sample]] <- list(type = list(adduct = matrix))
+    if (is.null(matrices[[sample]])) {
+      matrices[[sample]] <- list()
     }
+    if (is.null(matrices[[sample]][[type]])) {
+      matrices[[sample]][[type]] <- list()
+    }
+    matrices[[sample]][[type]][[adduct]] <- matrix
   }
 
   return(matrices)

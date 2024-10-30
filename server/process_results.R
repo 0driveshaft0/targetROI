@@ -34,6 +34,11 @@ shiny::observeEvent(input$process_results_study, {
   }
 })
 
+# Get all the matrices when the project is selected
+shiny::observeEvent(input$project, {
+  project_matrices <<- get_project_matrices(db, input$project)
+})
+
 # Filter variable to keep filters matrix when one filter was applied
 filters_apply <- reactiveValues(f=FALSE)
 
@@ -51,8 +56,8 @@ final_mat <- reactive({
   }else{
     print("ERROR !!")
   }
-  if(input$process_results_chemical_adduct %in% names(mat()[[file]][[input$process_results_study]])){
-    table <- reduce_matrix(mat()[[file]][[input$process_results_study]][[input$process_results_chemical_adduct]], select_choice, greycells = TRUE)
+  if(input$process_results_chemical_adduct %in% names(project_matrices[[file]][[input$process_results_study]])){
+    table <- reduce_matrix(project_matrices[[file]][[input$process_results_study]][[input$process_results_chemical_adduct]], select_choice, greycells = TRUE)
     if("Error" %in% colnames(table)){
       data.frame(Error = paste("This adduct doesn't exist for this chemical type sorry !",3,sep="/"))
     }else{
@@ -232,74 +237,6 @@ initComplete = htmlwidgets::JS("
 		Shiny.onInputChange('process_results_adduct_selected', adduct);
 	});
 "))
-
-observeEvent(input$record_matrix_db, {
-  full_mat <- mat()
-  matrix_metadata <- list()
-  matrix_data <- list()
-
-  # Parcourir chaque niveau de full_mat
-  for (sample in names(full_mat)) {
-    sample_layer <- full_mat[[sample]]
-
-    for (type in names(sample_layer)) {
-      type_layer <- sample_layer[[type]]
-
-      for (adduct in names(type_layer)) {
-        adduct_layer <- type_layer[[adduct]]
-
-        # Ajouter les métadonnées
-        matrix_metadata[[length(matrix_metadata) + 1]] <- data.frame(
-          project = input$project,
-          sample = sample,
-          type = type,
-          adduct = adduct,
-          stringsAsFactors = FALSE
-        )
-
-        # Pour chaque cellule de la matrice
-        for (carbon in rownames(adduct_layer)) {
-          for (chlore in colnames(adduct_layer)) {
-            cell_value <- adduct_layer[carbon, chlore]
-
-            # Ajouter les informations dans matrix_data sous forme de liste
-            matrix_data[[length(matrix_data) + 1]] <- data.frame(
-              carbon = carbon,
-              chlore = chlore,
-              values = cell_value,
-              stringsAsFactors = FALSE
-            )
-          }
-        }
-      }
-    }
-  }
-
-  # Combiner toutes les lignes dans un seul data.frame pour les métadonnées
-  final_metadata_df <- do.call(rbind, matrix_metadata)
-
-  # Combiner toutes les lignes dans un seul data.frame pour les valeurs
-  final_data_df <- do.call(rbind, matrix_data)
-
-  # Enregistrement des données dans la base de données
-  record_matrix_data(db, final_metadata_df, final_data_df)
-
-  # Notification de succès
-  shiny::showNotification("The matrices have been successfully registered in the database and exported!", type = "message")
-
-  matrices <- get_project_matrices(db, input$project)
-  # Notification de succès
-  shiny::showNotification("The matrices have been successfully retrieved from the database!", type = "message")
-  print(matrices)
-})
-
-observeEvent(input$delete_matrix_db, {
-  # Supprimer les matrices d'une ancienne déconvolution associé au même projet
-  delete_project_matrices(db, input$project)
-
-  # Notification de succès
-  shiny::showNotification("The matrices associated with the project have been successfully deleted!", type = "message")
-})
 
 #' @title Event when a cell is selected
 #' 
@@ -597,7 +534,7 @@ shiny::observeEvent(input$export_button,{
       shinyWidgets::progressSweetAlert(session, 'exportBar', value = pbValue, title = "Export...", striped = TRUE, display_pct = TRUE)
 
       values$export <- TRUE
-      full_mat <- mat()
+      full_mat <- project_matrices
       values$export <- FALSE
 
       finalResult <- NULL
