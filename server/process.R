@@ -720,6 +720,8 @@ shiny::observeEvent(input$process_launch, {
 
     # Retrieve the matrices associated with the current project
     project_matrices <<- get_project_matrix(db, input$project)
+    round_project_matrices <<- round_project_matrix(project_matrices, intensity_digits = 0, deviation_digits = 1)
+    round_project_matrices_export <<- round_project_matrix(project_matrices, intensity_digits = 6, deviation_digits = 2)
 
     # print("############################################################")
     # print("##################   MATRICES SUMMARY all   ################")

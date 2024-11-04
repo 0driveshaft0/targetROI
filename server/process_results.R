@@ -37,6 +37,8 @@ shiny::observeEvent(input$process_results_study, {
 # Get all the matrices when the project is selected
 shiny::observeEvent(input$project, {
   project_matrices <<- get_project_matrix(db, input$project)
+  round_project_matrices <<- round_project_matrix(project_matrices, intensity_digits = 0, deviation_digits = 1)
+  round_project_matrices_export <<- round_project_matrix(project_matrices, intensity_digits = 6, deviation_digits = 2)
 })
 
 # Filter variable to keep filters matrix when one filter was applied
@@ -56,8 +58,8 @@ final_mat <- reactive({
   }else{
     print("ERROR !!")
   }
-  if(input$process_results_chemical_adduct %in% names(project_matrices[[file]][[input$process_results_study]])){
-    table <- reduce_matrix(project_matrices[[file]][[input$process_results_study]][[input$process_results_chemical_adduct]], select_choice, greycells = TRUE)
+  if(input$process_results_chemical_adduct %in% names(round_project_matrices[[file]][[input$process_results_study]])){
+    table <- reduce_matrix(round_project_matrices[[file]][[input$process_results_study]][[input$process_results_chemical_adduct]], select_choice, greycells = TRUE)
     if("Error" %in% colnames(table)){
       data.frame(Error = paste("This adduct doesn't exist for this chemical type sorry !",3,sep="/"))
     }else{
@@ -532,10 +534,8 @@ shiny::observeEvent(input$export_button,{
       pbValue <- 0 # When add unique is when we considered all chem type in one family
       maxBar <- length(unique(allDeconv$adduct))
       shinyWidgets::progressSweetAlert(session, 'exportBar', value = pbValue, title = "Export...", striped = TRUE, display_pct = TRUE)
-
-      values$export <- TRUE
-      full_mat <- project_matrices
-      values$export <- FALSE
+      
+      full_mat <- round_project_matrices_export
 
       finalResult <- NULL
       for(adduct in unique(allDeconv$adduct)){

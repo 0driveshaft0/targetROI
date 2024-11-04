@@ -650,3 +650,47 @@ get_project_matrix <- function(db, project_id) {
 
   return(matrices)
 }
+
+# Function to round and normalize specific elements in the project_matrices object
+# intensity_digits is the number of units after the decimal point for the intensity "default = 0" "export = 6"
+# deviation_digits is the number of units after the decimal point for the deviation "default = 1" "export = 2"
+round_project_matrix <- function(matrices, intensity_digits = 0, deviation_digits = 1) {
+  # Loop through each sample
+  for (sample in names(matrices)) {
+    # Loop through each type for the current sample
+    for (type in names(matrices[[sample]])) {
+      # Loop through each adduct for the current type
+      for (adduct in names(matrices[[sample]][[type]])) {
+        # Retrieve the current matrix
+        current_matrix <- matrices[[sample]][[type]][[adduct]]
+        
+        # Loop through each cell of the matrix
+        for (i in seq_len(nrow(current_matrix))) {
+          for (j in seq_len(ncol(current_matrix))) {
+            # Split the value into its components
+            split_values <- unlist(strsplit(current_matrix[i, j], "/"))
+            
+            # Check if the first three elements are "NA"
+            if (!(split_values[1] == "NA" && split_values[2] == "NA" && split_values[3] == "NA")) {
+              # Convert, normalize, and round the second element (intensity)
+              intensity_value <- round(as.numeric(split_values[2]) / 10^6, intensity_digits)
+              # If the intensity is 0, set the value to "NA"
+              split_values[2] <- ifelse(intensity_value == 0, "NA", as.character(intensity_value))
+              
+              # Convert and round the third element (deviation)
+              deviation_value <- round(as.numeric(split_values[3]) * 10^3, deviation_digits)
+              # If the deviation is 0, set the value to "NA"
+              split_values[3] <- ifelse(deviation_value == 0, "NA", format(deviation_value, nsmall = deviation_digits))
+              
+              # Reassemble the components back into a single string
+              current_matrix[i, j] <- paste(split_values, collapse = "/")
+            }
+          }
+        }
+        # Update the matrix in the project_matrices structure
+        matrices[[sample]][[type]][[adduct]] <- current_matrix
+      }
+    }
+  }
+  return(matrices)
+}
