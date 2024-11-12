@@ -300,7 +300,7 @@ get_standard_table_quanti <- function(db, project = NULL, adducts = NULL, standa
 ##########################################
 
 # Change this reactive function to a function with arguments
-# Set mat() with export = TRUE to have the most digits
+# Set project_matrices with export = TRUE to have the most digits
 quanti_final_mat_func <- function(db, project, select_choice = 2, adducts) {
   # Initialize the progress bar
   withProgress(message = 'Matrix recovery...', value = 0, {
@@ -376,9 +376,9 @@ quanti_final_mat_func <- function(db, project, select_choice = 2, adducts) {
           incProgress(1 / total_iterations, detail = sprintf("Processing %s - %s - %s (%d/%d)", file, study, adduct, iteration, total_iterations))
           
           # Check if the adduct exists for the current study
-          if (adduct %in% names(mat()[[file]][[study]])) {
+          if (adduct %in% names(project_matrices[[file]][[study]])) {
             # Reduce the matrix based on user choices
-            table <- reduce_matrix(mat()[[file]][[study]][[adduct]], select_choice, greycells = TRUE)
+            table <- reduce_matrix(project_matrices[[file]][[study]][[adduct]], select_choice, greycells = TRUE)
             if (!("Error" %in% colnames(table))) {
               result_tables[[paste(file, study, adduct, sep = "_")]] <- list(
                 table = table,
@@ -566,6 +566,7 @@ observeEvent(input$project, {
   cal_samples <- get_cal_samples(db, input$project)
   cal_samples(cal_samples)
   print(cal_samples())  # Debugging
+  graph_data(data.frame())
 })
 
 output$quanti_table_subclass <- renderDT({
@@ -1065,9 +1066,4 @@ observeEvent(c(input$graph_selector, graph_data()), {
       }
     })
   }
-})
-
-# Observe change in input$project to reset the cal_data_df reactive value to an empty data frame
-observeEvent(input$project, {
-  graph_data(data.frame())
 })

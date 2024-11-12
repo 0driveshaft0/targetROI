@@ -598,3 +598,99 @@ get_infos <- function(db, project = NULL){
   }
   db_get_query(db, query)
 }
+
+get_project_matrix <- function(db, project_id) {
+  # Requête pour obtenir les métadonnées associées au projet
+  metadata_query <- sprintf("SELECT id, sample, type, adduct FROM matrix_metadata WHERE project = %s", project_id)
+  metadata <- dbGetQuery(db, metadata_query)
+  
+  if (nrow(metadata) == 0) {
+    message("Aucune métadonnée trouvée pour le projet:", project_id)
+    return(list())
+  }
+
+  # Requête pour obtenir les valeurs associées aux métadonnées
+  values_query <- sprintf("SELECT metadata_id, carbon, chlore, `values` FROM matrix WHERE metadata_id IN (%s)", paste(metadata$id, collapse = ","))
+  values <- dbGetQuery(db, values_query)
+
+  # Initialiser une liste pour stocker les matrices
+  matrices <- list()
+
+  # Parcourir les métadonnées et reconstruire les matrices
+  for (i in seq_len(nrow(metadata))) {
+    metadata_row <- metadata[i, ]
+    metadata_id <- metadata_row$id
+    sample <- metadata_row$sample
+    type <- metadata_row$type
+    adduct <- metadata_row$adduct
+
+    # Filtrer les valeurs pour le métadonnée actuelle
+    matrix_values <- values[values$metadata_id == metadata_id, ]
+
+    # Créer une matrice vide avec les dimensions appropriées
+    carbon_levels <- unique(matrix_values$carbon)
+    chlore_levels <- unique(matrix_values$chlore)
+    matrix <- matrix(NA, nrow = length(carbon_levels), ncol = length(chlore_levels), dimnames = list(carbon_levels, chlore_levels))
+
+    # Remplir la matrice avec les valeurs
+    for (j in seq_len(nrow(matrix_values))) {
+      row <- matrix_values[j, ]
+      matrix[row$carbon, row$chlore] <- row$values
+    }
+
+    # Ajouter la matrice à la liste
+    if (is.null(matrices[[sample]])) {
+      matrices[[sample]] <- list()
+    }
+    if (is.null(matrices[[sample]][[type]])) {
+      matrices[[sample]][[type]] <- list()
+    }
+    matrices[[sample]][[type]][[adduct]] <- matrix
+  }
+
+  return(matrices)
+}
+
+# Function to round and normalize specific elements in the project_matrices object
+# intensity_digits is the number of units after the decimal point for the intensity "default = 0" "export = 6"
+# deviation_digits is the number of units after the decimal point for the deviation "default = 1" "export = 2"
+round_project_matrix <- function(matrices, intensity_digits = 0, deviation_digits = 1) {
+  # Loop through each sample
+  for (sample in names(matrices)) {
+    # Loop through each type for the current sample
+    for (type in names(matrices[[sample]])) {
+      # Loop through each adduct for the current type
+      for (adduct in names(matrices[[sample]][[type]])) {
+        # Retrieve the current matrix
+        current_matrix <- matrices[[sample]][[type]][[adduct]]
+        
+        # Loop through each cell of the matrix
+        for (i in seq_len(nrow(current_matrix))) {
+          for (j in seq_len(ncol(current_matrix))) {
+            # Split the value into its components
+            split_values <- unlist(strsplit(current_matrix[i, j], "/"))
+            
+            # Check if the first three elements are "NA"
+            if (!(split_values[1] == "NA" && split_values[2] == "NA" && split_values[3] == "NA")) {
+              # Convert, normalize, and round the second element (intensity)
+              intensity_value <- round(as.numeric(split_values[2]) / 10^6, intensity_digits)
+              # If the intensity is 0, set the value to "NA"
+              split_values[2] <- ifelse(intensity_value == 0, "NA", as.character(intensity_value))
+              
+              # Convert and round the third element (deviation)
+              deviation_value <- round(as.numeric(split_values[3]) * 10^3, deviation_digits)
+              # If the deviation is 0, set the value to "NA"
+              split_values[3] <- ifelse(deviation_value == 0, "NA", format(deviation_value, nsmall = deviation_digits))
+              
+              # Reassemble the components back into a single string
+              current_matrix[i, j] <- paste(split_values, collapse = "/")
+            }
+          }
+        }
+        # Update the matrix in the project_matrices structure
+        matrices[[sample]][[type]][[adduct]] <- current_matrix
+      }
+    }
+  }
+  return(matrices)
+}

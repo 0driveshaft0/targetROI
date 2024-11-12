@@ -613,8 +613,131 @@ shiny::observeEvent(input$process_launch, {
 
 		print('done')
 		actualize$results_matrix
-  	actualize$deconvolution_params
-  	mat()
+        
+    # Update deconvolution parameters and exported values
+    actualize$deconvolution_params
+
+    # Query to retrieve chemical types and adducts associated with the selected project,
+    # excluding chemicals that belong to the "Standard" family.
+    query <- sprintf('SELECT chemical_type, adduct 
+                        FROM deconvolution_param 
+                        WHERE project = "%s" 
+                        AND chemical_type IN (
+                        SELECT chemical_type 
+                        FROM chemical 
+                        WHERE chemical_familly != "Standard"
+                        );', input$project)
+    chemicals <- db_get_query(db, query)
+    print("TYPES CHIMIQUES:")
+    print(chemicals)
+    
+    # Retrieve sample data for the selected project
+    samples <- get_samples(db, input$project)
+    print("Échantillons:")
+    print(samples)
+
+    # Initialize lists to store matrix metadata and matrix cell data
+    matrix_metadata <- list()
+    matrix_data <- list()
+    
+    # Progress tracking for matrix retrieval and processing
+    withProgress(message = 'Retrieving profile matrices...', value = 0, {
+        total_iterations <- length(samples$sample_id)
+        print(paste("Total samples to process:", total_iterations))
+
+        amount <- total_iterations * length(unique(chemicals$chemical_type)) * length(unique(chemicals$adduct))
+        print(paste("Total iterations expected:", amount))
+        iteration <- 0
+        
+        # Iterate through all samples to retrieve profile matrices
+        for (i in 1:total_iterations) {
+            sample_id = samples$sample_id[i]
+            print(paste("Processing sample ID:", sample_id))
+
+            # Loop through each chemical type and adduct for the current sample
+            for (chemical in unique(chemicals$chemical_type)) {
+                print(paste("Processing chemical type:", chemical))
+
+                for (adduct in unique(chemicals$adduct[which(chemicals$chemical_type == chemical)])) {
+                print(paste("Processing adduct:", adduct))
+                
+                # Retrieve the profile matrix for the current sample-type-adduct triplet
+                result <- get_profile_matrix(db, samples$project_sample[i], adduct, chemical, simplify = FALSE, table = FALSE, export = TRUE)
+                
+                # Append metadata for the current matrix set
+                matrix_metadata[[length(matrix_metadata) + 1]] <- data.frame(
+                    project = input$project,
+                    sample = sample_id,
+                    type = chemical,
+                    adduct = adduct,
+                    stringsAsFactors = FALSE
+                )
+
+                # Print the structure of the retrieved result
+                print(paste("Retrieved matrix for sample:", sample_id, "chemical:", chemical, "adduct:", adduct))
+                # print(str(result))
+
+                # Append individual matrix cell data
+                for (carbon in rownames(result)) {
+                    for (chlore in colnames(result)) {
+                    cell_value <- result[carbon, chlore]
+                    
+                    matrix_data[[length(matrix_data) + 1]] <- data.frame(
+                        carbon = carbon,
+                        chlore = chlore,
+                        values = cell_value,
+                        stringsAsFactors = FALSE
+                    )
+                    }
+                }
+                
+                # Update progress bar
+                iteration <- iteration + 1
+                incProgress(1 / amount, detail = sprintf("Processing %d of %d", iteration, total_iterations))
+                }
+            }
+        }
+    })
+
+    # Combine all metadata entries into a single data.frame
+    final_metadata_df <- do.call(rbind, matrix_metadata)
+
+    # Combine all matrix data entries into a single data.frame
+    final_data_df <- do.call(rbind, matrix_data)
+    
+    # Delete the matrices associated with the current project
+    delete_project_matrix(db, input$project)
+
+    # Success notification for deleting the matrices associated with the project
+    shiny::showNotification("The matrices associated with the project have been successfully deleted!", type = "message")
+    
+    # Save data to the database
+    record_matrix_data(db, final_metadata_df, final_data_df)
+
+    # Success notification for saving the data
+    shiny::showNotification("The matrices have been successfully registered in the database and exported!", type = "message")
+    print("The matrices have been successfully registered in the database and exported!")
+
+    # Retrieve the matrices associated with the current project
+    project_matrices <<- get_project_matrix(db, input$project)
+    round_project_matrices <<- round_project_matrix(project_matrices, intensity_digits = 0, deviation_digits = 1)
+    round_project_matrices_export <<- round_project_matrix(project_matrices, intensity_digits = 6, deviation_digits = 2)
+
+    # print("############################################################")
+    # print("##################   MATRICES SUMMARY all   ################")
+    # print("############################################################")
+    
+    # print(str(project_matrices))
+    
+    # print("############################################################")
+    # print("##################   END MATRICES SUMMARY   ################")
+    # print("############################################################")
+
+    # Success notification for matrix retrieval
+    shiny::showNotification("The matrices have been successfully retrieved from the database!", type = "message")
+    print("The matrices have been successfully retrieved from the database!")
+    # print(project_matrices)
+    
 		shiny::updateTabsetPanel(session, "tabs", "process_results")
 		shinyWidgets::closeSweetAlert(session)
 	}, invalid = function(i) NULL
