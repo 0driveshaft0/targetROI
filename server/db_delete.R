@@ -138,16 +138,24 @@ delete_features <- function(db, project_samples = NULL, adduct = NULL, chemical_
 
 delete_project_matrix <- function(db, project_id) {
   # Requête pour obtenir les IDs des métadonnées associées au projet
-  metadata_query <- sprintf("SELECT id FROM matrix_metadata WHERE project = %s", project_id)
-  metadata_ids <- dbGetQuery(db, metadata_query)$id
+  metadata_query <- sprintf("SELECT metadata_id FROM matrix_metadata WHERE project = '%s'", project_id)
+  metadata_ids <- dbGetQuery(db, metadata_query)$metadata_id
 
-  # Si des métadonnées sont trouvées, supprimer les valeurs associées
+  # Vérifier si des métadonnées sont trouvées
   if (length(metadata_ids) > 0) {
-    values_query <- sprintf("DELETE FROM matrix WHERE metadata_id IN (%s)", paste(metadata_ids, collapse = ","))
+    # Construire la requête pour supprimer les valeurs associées
+    values_query <- sprintf(
+      "DELETE FROM matrix WHERE metadata_id IN (%s)",
+      paste(sprintf("'%s'", metadata_ids), collapse = ",")
+    )
     dbExecute(db, values_query)
+    message(sprintf("Suppression de %d entrées de la table 'matrix'", length(metadata_ids)))
+  } else {
+    message(sprintf("Aucune metadonnee trouvee pour le projet: %s", project_id))
   }
 
   # Supprimer les métadonnées associées au projet
-  metadata_delete_query <- sprintf("DELETE FROM matrix_metadata WHERE project = %s", project_id)
+  metadata_delete_query <- sprintf("DELETE FROM matrix_metadata WHERE project = '%s'", project_id)
   dbExecute(db, metadata_delete_query)
+  message(sprintf("Toutes les metadonnees pour le projet %s ont ete supprimees.", project_id))
 }

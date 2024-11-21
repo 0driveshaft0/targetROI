@@ -114,6 +114,7 @@ CREATE TABLE `subclass` (
 );
 CREATE TABLE `matrix_metadata` (
     `id` 			INTEGER PRIMARY KEY AUTOINCREMENT,
+	`metadata_id` 	TEXT,
     `project` 		INTEGER,
     `sample` 		TEXT,
     `type` 			TEXT,
@@ -121,9 +122,8 @@ CREATE TABLE `matrix_metadata` (
 );
 CREATE TABLE `matrix` (
     `id` 			INTEGER PRIMARY KEY AUTOINCREMENT,
-    `metadata_id` 	INTEGER,
+    `metadata_id` 	TEXT,
     `carbon` 		TEXT,
     `chlore` 		TEXT,
-    `values` 		TEXT,
-    FOREIGN KEY (metadata_id) REFERENCES matrix_metadata(id)
+    `values` 		TEXT
 );

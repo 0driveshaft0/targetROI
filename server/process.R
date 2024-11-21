@@ -707,8 +707,7 @@ shiny::observeEvent(input$process_launch, {
       # Update deconvolution parameters and exported values
       actualize$deconvolution_params
 
-      # Query to retrieve chemical types and adducts associated with the selected project,
-      # excluding chemicals that belong to the "Standard" family.
+      # Query to retrieve chemical types and adducts associated with the selected project
       query <- sprintf('SELECT chemical_type, adduct
                         FROM deconvolution_param
                         WHERE project = "%s"
@@ -729,6 +728,9 @@ shiny::observeEvent(input$process_launch, {
       # Initialize lists to store matrix metadata and matrix cell data
       matrix_metadata <- list()
       matrix_data <- list()
+
+      # Initialize metadata ID counter
+      id_counter <- 1
 
       # Progress tracking for matrix retrieval and processing
       withProgress(message = "Retrieving profile matrices...", value = 0, {
@@ -756,6 +758,7 @@ shiny::observeEvent(input$process_launch, {
 
               # Append metadata for the current matrix set
               matrix_metadata[[length(matrix_metadata) + 1]] <- data.frame(
+                metadata_id = paste(input$project, id_counter, sep = "_"),
                 project = input$project,
                 sample = sample_id,
                 type = chemical,
@@ -773,6 +776,7 @@ shiny::observeEvent(input$process_launch, {
                   cell_value <- result[carbon, chlore]
 
                   matrix_data[[length(matrix_data) + 1]] <- data.frame(
+                    metadata_id = paste(input$project, id_counter, sep = "_"),
                     carbon = carbon,
                     chlore = chlore,
                     values = cell_value,
@@ -780,10 +784,12 @@ shiny::observeEvent(input$process_launch, {
                   )
                 }
               }
+              # Increase the metadata ID counter for the next iteration
+              id_counter <- id_counter + 1
 
               # Update progress bar
               iteration <- iteration + 1
-              incProgress(1 / amount, detail = sprintf("Processing %d of %d", iteration, total_iterations))
+              incProgress(1 / amount, detail = sprintf("Processing %d of %d", iteration, amount))
             }
           }
         }
@@ -801,6 +807,21 @@ shiny::observeEvent(input$process_launch, {
       # Success notification for deleting the matrices associated with the project
       shiny::showNotification("The matrices associated with the project have been successfully deleted!", type = "message")
       print("The matrices associated with the project have been successfully deleted!")
+
+      # Query to retrieve ONLY STANDARDS types and adducts associated with the selected project
+      query <- sprintf('SELECT chemical_type, adduct
+                        FROM deconvolution_param
+                        WHERE project = "%s"
+                        AND chemical_type IN (
+                        SELECT chemical_type
+                        FROM chemical
+                        WHERE chemical_familly = "Standard"
+                        );', input$project)
+      chemicals_standards <- db_get_query(db, query)
+
+      print("TYPES CHIMIQUES STANDARDS:")
+      print(str(chemicals_standards))
+      print(chemicals_standards)
 
       # Save data to the database
       record_matrix_data(db, final_metadata_df, final_data_df)

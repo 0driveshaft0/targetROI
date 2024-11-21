@@ -158,22 +158,23 @@ record_matrix_data <- function(db, metadata, data) {
     return()
   }
 
+  # Afficher la taille des data frames
+  print(paste("Metadata data frame rows:", nrow(metadata)))
+  print(paste("Matrix data frame rows:", nrow(data)))
+
   # Préparer une requête d'insertion pour les métadonnées
-  metadata_query <- "INSERT OR REPLACE INTO matrix_metadata (project, sample, type, adduct) VALUES (?, ?, ?, ?)"
+  metadata_query <- "INSERT OR REPLACE INTO matrix_metadata (metadata_id, project, sample, type, adduct) VALUES (?, ?, ?, ?, ?)"
 
   # Insérer les métadonnées et obtenir les IDs
-  metadata_ids <- apply(metadata, 1, function(row) {
+  apply(metadata, 1, function(row) {
     dbExecute(db, metadata_query, params = list(
+      row["metadata_id"],
       row["project"],
       row["sample"],
       row["type"],
       row["adduct"]
     ))
-    dbGetQuery(db, "SELECT last_insert_rowid()")[[1]]
   })
-
-  # Ajouter les IDs des métadonnées au data frame des valeurs
-  data$metadata_id <- rep(metadata_ids, each = nrow(data) / length(metadata_ids))
 
   # Préparer une requête d'insertion pour les valeurs
   values_query <- "INSERT OR REPLACE INTO matrix (metadata_id, carbon, chlore, `values`) VALUES (?, ?, ?, ?)"

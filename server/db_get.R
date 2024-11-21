@@ -687,7 +687,7 @@ get_infos <- function(db, project = NULL) {
 
 get_project_matrix <- function(db, project_id) {
   # Requête pour obtenir les métadonnées associées au projet
-  metadata_query <- sprintf("SELECT id, sample, type, adduct FROM matrix_metadata WHERE project = %s", project_id)
+  metadata_query <- sprintf("SELECT metadata_id, sample, type, adduct FROM matrix_metadata WHERE project = %s", project_id)
   metadata <- dbGetQuery(db, metadata_query)
 
   if (nrow(metadata) == 0) {
@@ -696,7 +696,10 @@ get_project_matrix <- function(db, project_id) {
   }
 
   # Requête pour obtenir les valeurs associées aux métadonnées
-  values_query <- sprintf("SELECT metadata_id, carbon, chlore, `values` FROM matrix WHERE metadata_id IN (%s)", paste(metadata$id, collapse = ","))
+  values_query <- sprintf(
+    "SELECT metadata_id, carbon, chlore, `values` FROM matrix WHERE metadata_id IN (%s)",
+    paste(sprintf("'%s'", metadata$metadata_id), collapse = ",")
+  )
   values <- dbGetQuery(db, values_query)
 
   # Initialiser une liste pour stocker les matrices
@@ -705,7 +708,7 @@ get_project_matrix <- function(db, project_id) {
   # Parcourir les métadonnées et reconstruire les matrices
   for (i in seq_len(nrow(metadata))) {
     metadata_row <- metadata[i, ]
-    metadata_id <- metadata_row$id
+    metadata_id <- metadata_row$metadata_id
     sample <- metadata_row$sample
     type <- metadata_row$type
     adduct <- metadata_row$adduct
@@ -742,6 +745,7 @@ get_project_matrix <- function(db, project_id) {
 # deviation_digits is the number of units after the decimal point for the deviation "default = 1" "export = 2"
 round_project_matrix <- function(matrices, intensity_digits = 0, deviation_digits = 1) {
   # Loop through each sample
+  print("Debut de la boucle round_project_matrix")
   for (sample in names(matrices)) {
     # Loop through each type for the current sample
     for (type in names(matrices[[sample]])) {
@@ -755,21 +759,26 @@ round_project_matrix <- function(matrices, intensity_digits = 0, deviation_digit
           for (j in seq_len(ncol(current_matrix))) {
             # Split the value into its components
             split_values <- unlist(strsplit(current_matrix[i, j], "/"))
+            # Replace any R `NA` values with the string "NA"
+            split_values <- ifelse(is.na(split_values), "NA", split_values)
 
-            # Check if the first three elements are "NA"
-            if (!(split_values[1] == "NA" && split_values[2] == "NA" && split_values[3] == "NA")) {
-              # Convert, normalize, and round the second element (intensity)
-              intensity_value <- round(as.numeric(split_values[2]) / 10^6, intensity_digits)
-              # If the intensity is 0, set the value to "NA"
-              split_values[2] <- ifelse(intensity_value == 0, "NA", as.character(intensity_value))
+            # Ensure there are at least three components to process
+            if (length(split_values) == 4) {
+              # Check if the first three elements are not all "NA"
+              if (!(split_values[1] == "NA" && split_values[2] == "NA" && split_values[3] == "NA")) {
+                # Convert, normalize, and round the second element (intensity)
+                intensity_value <- suppressWarnings(as.numeric(split_values[2]))
+                intensity_value <- round(intensity_value / 10^6, intensity_digits)
+                split_values[2] <- ifelse(intensity_value == 0, "NA", as.character(intensity_value))
 
-              # Convert and round the third element (deviation)
-              deviation_value <- round(as.numeric(split_values[3]) * 10^3, deviation_digits)
-              # If the deviation is 0, set the value to "NA"
-              split_values[3] <- ifelse(deviation_value == 0, "NA", format(deviation_value, nsmall = deviation_digits))
+                # Convert and round the third element (deviation)
+                deviation_value <- suppressWarnings(as.numeric(split_values[3]))
+                deviation_value <- round(deviation_value * 10^3, deviation_digits)
+                split_values[3] <- ifelse(deviation_value == 0, "NA", format(deviation_value, nsmall = deviation_digits))
 
-              # Reassemble the components back into a single string
-              current_matrix[i, j] <- paste(split_values, collapse = "/")
+                # Reassemble the components back into a single string
+                current_matrix[i, j] <- paste(split_values, collapse = "/")
+              }
             }
           }
         }
