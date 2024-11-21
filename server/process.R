@@ -744,14 +744,14 @@ shiny::observeEvent(input$process_launch, {
         # Iterate through all samples to retrieve profile matrices
         for (i in 1:total_iterations) {
           sample_id <- samples$sample_id[i]
-          print(paste("Processing sample ID:", sample_id))
+          # print(paste("Processing sample ID:", sample_id))
 
           # Loop through each chemical type and adduct for the current sample
           for (chemical in unique(chemicals$chemical_type)) {
-            print(paste("Processing chemical type:", chemical))
+            # print(paste("Processing chemical type:", chemical))
 
             for (adduct in unique(chemicals$adduct[which(chemicals$chemical_type == chemical)])) {
-              print(paste("Processing adduct:", adduct))
+              # print(paste("Processing adduct:", adduct))
 
               # Retrieve the profile matrix for the current sample-type-adduct triplet
               result <- get_profile_matrix(db, samples$project_sample[i], adduct, chemical, simplify = FALSE, table = FALSE, export = TRUE)
@@ -767,7 +767,7 @@ shiny::observeEvent(input$process_launch, {
               )
 
               # Print the structure of the retrieved result
-              print(paste("Retrieved matrix for sample:", sample_id, "chemical:", chemical, "adduct:", adduct))
+              # print(paste("Retrieved matrix for sample:", sample_id, "chemical:", chemical, "adduct:", adduct))
               # print(str(result))
 
               # Append individual matrix cell data
@@ -807,21 +807,6 @@ shiny::observeEvent(input$process_launch, {
       # Success notification for deleting the matrices associated with the project
       shiny::showNotification("The matrices associated with the project have been successfully deleted!", type = "message")
       print("The matrices associated with the project have been successfully deleted!")
-
-      # Query to retrieve ONLY STANDARDS types and adducts associated with the selected project
-      query <- sprintf('SELECT chemical_type, adduct
-                        FROM deconvolution_param
-                        WHERE project = "%s"
-                        AND chemical_type IN (
-                        SELECT chemical_type
-                        FROM chemical
-                        WHERE chemical_familly = "Standard"
-                        );', input$project)
-      chemicals_standards <- db_get_query(db, query)
-
-      print("TYPES CHIMIQUES STANDARDS:")
-      print(str(chemicals_standards))
-      print(chemicals_standards)
 
       # Save data to the database
       record_matrix_data(db, final_metadata_df, final_data_df)
